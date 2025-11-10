@@ -9,7 +9,10 @@ from .serializers import (
     PhoneCheckSerializer,
     PhoneRegisterSerializer,
     PhoneBulkRegisterSerializer,
-    PhoneCleanupSerializer
+    PhoneListSerializer,
+    PhoneAnalyticsSerializer,
+    PhoneCleanupSerializer,
+    SpamAnalysisSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,7 +42,7 @@ class PhoneCheckView(APIView):
 
 
 class PhoneRegisterView(APIView):
-    """Register a single phone number."""
+    """Register a single phone number with full details."""
     
     def post(self, request):
         serializer = PhoneRegisterSerializer(data=request.data)
@@ -47,11 +50,17 @@ class PhoneRegisterView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        phone_number = serializer.validated_data['phone_number']
-        
         try:
             service = get_phone_registry_service()
-            result = service.register_phone(phone_number)
+            result = service.register_phone(
+                phone_number=serializer.validated_data['phone_number'],
+                botname=serializer.validated_data['botname'],
+                country=serializer.validated_data['country'],
+                iso2=serializer.validated_data['iso2'],
+                twofa=serializer.validated_data['twofa'],
+                session_string=serializer.validated_data['session_string'],
+                quality=serializer.validated_data.get('quality'),
+            )
             return Response(result, status=status.HTTP_200_OK)
         except Exception as e:
             logger.error(f"Error registering phone number: {str(e)}")
@@ -89,6 +98,62 @@ class PhoneBulkRegisterView(APIView):
             )
 
 
+class PhoneListView(APIView):
+    """List phone numbers with pagination and filtering."""
+    
+    def get(self, request):
+        serializer = PhoneListSerializer(data=request.query_params)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            service = get_phone_registry_service()
+            result = service.list_phones(
+                page=serializer.validated_data.get('page', 1),
+                limit=serializer.validated_data.get('limit', 100),
+                botname=serializer.validated_data.get('botname'),
+                country=serializer.validated_data.get('country'),
+                iso2=serializer.validated_data.get('iso2'),
+                is_bulked=serializer.validated_data.get('is_bulked'),
+                quality=serializer.validated_data.get('quality'),
+                order_by=serializer.validated_data.get('order_by', 'registered_at'),
+                order_direction=serializer.validated_data.get('order_direction', 'desc'),
+            )
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error listing phone numbers: {str(e)}")
+            return Response(
+                {'error': 'Failed to list phone numbers', 'detail': str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+
+class PhoneAnalyticsView(APIView):
+    """Get analytics and statistics for phone registry."""
+    
+    def get(self, request):
+        serializer = PhoneAnalyticsSerializer(data=request.query_params)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            service = get_phone_registry_service()
+            result = service.get_analytics(
+                start_date=serializer.validated_data.get('start_date'),
+                end_date=serializer.validated_data.get('end_date'),
+                is_bulked=serializer.validated_data.get('is_bulked'),
+            )
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error getting analytics: {str(e)}")
+            return Response(
+                {'error': 'Failed to get analytics', 'detail': str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+
 class PhoneCleanupView(APIView):
     """Cleanup old phone registry records."""
     
@@ -108,6 +173,29 @@ class PhoneCleanupView(APIView):
             logger.error(f"Error cleaning up records: {str(e)}")
             return Response(
                 {'error': 'Failed to cleanup records', 'detail': str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+
+class SpamAnalysisView(APIView):
+    """Analyze message for spam/account status detection."""
+    
+    def post(self, request):
+        serializer = SpamAnalysisSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        message = serializer.validated_data['message']
+        
+        try:
+            service = get_phone_registry_service()
+            result = service.analyze_spam(message)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error analyzing spam: {str(e)}")
+            return Response(
+                {'error': 'Failed to analyze spam', 'detail': str(e)},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 

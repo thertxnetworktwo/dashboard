@@ -170,20 +170,47 @@ class PhoneRegistryAPIService:
         )
     
     @retry_with_exponential_backoff(max_retries=3)
-    def register_phone(self, phone_number: str) -> Dict[str, Any]:
+    def register_phone(
+        self,
+        phone_number: str,
+        botname: str,
+        country: str,
+        iso2: str,
+        twofa: str,
+        session_string: str,
+        quality: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Register a single phone number.
+        Register a single phone number with full details.
         
         Args:
             phone_number: Phone number to register (e.g., "+1234567890")
+            botname: Bot name (max 100 characters)
+            country: Country name (max 100 characters)
+            iso2: 2-character ISO country code
+            twofa: Two-factor authentication password
+            session_string: Session string for authentication
+            quality: Optional quality metric
         
         Returns:
             Dictionary with success status and message
         """
+        data = {
+            'phone_number': phone_number,
+            'botname': botname,
+            'country': country,
+            'iso2': iso2.upper(),
+            'twofa': twofa,
+            'session_string': session_string,
+        }
+        
+        if quality:
+            data['quality'] = quality
+        
         return self._make_request(
             'POST',
             '/api/phone/register',
-            data={'phone_number': phone_number}
+            data=data
         )
     
     @retry_with_exponential_backoff(max_retries=3)
@@ -221,6 +248,152 @@ class PhoneRegistryAPIService:
             'DELETE',
             '/api/phone/cleanup',
             data={'retention_days': retention_days}
+        )
+    
+    @retry_with_exponential_backoff(max_retries=3)
+    def list_phones(
+        self,
+        page: int = 1,
+        limit: int = 100,
+        botname: Optional[str] = None,
+        country: Optional[str] = None,
+        iso2: Optional[str] = None,
+        is_bulked: Optional[bool] = None,
+        quality: Optional[str] = None,
+        order_by: str = 'registered_at',
+        order_direction: str = 'desc'
+    ) -> Dict[str, Any]:
+        """
+        List phone numbers with pagination and filtering.
+        
+        Args:
+            page: Page number (default: 1)
+            limit: Items per page (default: 100, max: 1000)
+            botname: Filter by bot name
+            country: Filter by country
+            iso2: Filter by ISO2 code
+            is_bulked: Filter by bulk status
+            quality: Filter by quality
+            order_by: Sort field
+            order_direction: Sort direction (asc/desc)
+        
+        Returns:
+            Dictionary with paginated results
+        """
+        params = {
+            'page': page,
+            'limit': limit,
+            'order_by': order_by,
+            'order_direction': order_direction,
+        }
+        
+        if botname:
+            params['botname'] = botname
+        if country:
+            params['country'] = country
+        if iso2:
+            params['iso2'] = iso2
+        if is_bulked is not None:
+            params['is_bulked'] = 'true' if is_bulked else 'false'
+        if quality:
+            params['quality'] = quality
+        
+        url = f"{self.base_url}/api/phone/list"
+        start_time = time.time()
+        
+        try:
+            logger.info(f"Making GET request to {url} with params: {params}")
+            
+            response = self.session.get(
+                url,
+                params=params,
+                timeout=self.timeout
+            )
+            
+            response_time_ms = int((time.time() - start_time) * 1000)
+            response.raise_for_status()
+            response_data = response.json()
+            
+            logger.info(
+                f"Request to {url} succeeded in {response_time_ms}ms. "
+                f"Response: {response_data}"
+            )
+            
+            return response_data
+            
+        except Exception as e:
+            logger.error(f"Error listing phones: {str(e)}")
+            raise
+    
+    @retry_with_exponential_backoff(max_retries=3)
+    def get_analytics(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        is_bulked: Optional[bool] = None
+    ) -> Dict[str, Any]:
+        """
+        Get analytics and statistics for phone registry.
+        
+        Args:
+            start_date: Start date for filtering (ISO format: YYYY-MM-DD)
+            end_date: End date for filtering (ISO format: YYYY-MM-DD)
+            is_bulked: Filter by bulk status
+        
+        Returns:
+            Dictionary with analytics data
+        """
+        params = {}
+        
+        if start_date:
+            params['start_date'] = start_date
+        if end_date:
+            params['end_date'] = end_date
+        if is_bulked is not None:
+            params['is_bulked'] = 'true' if is_bulked else 'false'
+        
+        url = f"{self.base_url}/api/phone/analytics"
+        start_time = time.time()
+        
+        try:
+            logger.info(f"Making GET request to {url} with params: {params}")
+            
+            response = self.session.get(
+                url,
+                params=params,
+                timeout=self.timeout
+            )
+            
+            response_time_ms = int((time.time() - start_time) * 1000)
+            response.raise_for_status()
+            response_data = response.json()
+            
+            logger.info(
+                f"Request to {url} succeeded in {response_time_ms}ms. "
+                f"Response: {response_data}"
+            )
+            
+            return response_data
+            
+        except Exception as e:
+            logger.error(f"Error getting analytics: {str(e)}")
+            raise
+    
+    @retry_with_exponential_backoff(max_retries=3)
+    def analyze_spam(self, message: str) -> Dict[str, Any]:
+        """
+        Analyze message for spam/account status detection.
+        
+        Args:
+            message: Message text to analyze
+        
+        Returns:
+            Dictionary with spam analysis results
+        """
+        return self._make_request(
+            'POST',
+            '/api/analyze-spam',
+            data={'message': message}
         )
 
 
