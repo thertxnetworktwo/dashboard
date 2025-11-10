@@ -1,5 +1,5 @@
 import api from './api';
-import { Product, ProductStats } from '../types';
+import type { Product, ProductStats } from '../types';
 
 export const productsService = {
   // Get all products with optional filtering/pagination

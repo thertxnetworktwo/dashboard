@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import { productsService } from './services/products'
-import { phoneRegistryService } from './services/phone-registry'
-import { ProductStats, HealthStatus } from './types'
+import type { ProductStats, HealthStatus } from './types'
 
 function App() {
   const [stats, setStats] = useState<ProductStats | null>(null)

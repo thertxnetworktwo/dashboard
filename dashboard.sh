@@ -36,16 +36,28 @@ setup() {
     # Backend setup
     print_info "Installing backend dependencies..."
     cd $BACKEND_DIR
-    pip3 install -r requirements.txt
+    
+    # Create virtual environment if it doesn't exist
+    if [ ! -d "venv" ]; then
+        print_info "Creating Python virtual environment..."
+        python3 -m venv venv
+    fi
+    
+    # Activate virtual environment
+    print_info "Activating virtual environment..."
+    source venv/bin/activate
+    
+    pip install -r requirements.txt
     
     # Create database
     print_info "Running database migrations..."
-    python3 manage.py migrate
+    python manage.py migrate
     
     # Load sample data
     print_info "Loading sample data..."
-    python3 manage.py populate_sample_data
+    python manage.py populate_sample_data
     
+    deactivate
     cd ..
     
     # Frontend setup
@@ -71,9 +83,11 @@ start() {
     # Start backend
     print_info "Starting Django backend on port 8000..."
     cd $BACKEND_DIR
-    python3 manage.py runserver 0.0.0.0:8000 &
+    source venv/bin/activate
+    python manage.py runserver 0.0.0.0:8000 &
     BACKEND_PID=$!
     echo $BACKEND_PID > /tmp/dashboard_backend.pid
+    deactivate
     cd ..
     
     sleep 2
@@ -163,8 +177,10 @@ EOF
 migrate() {
     print_info "Running database migrations..."
     cd $BACKEND_DIR
-    python3 manage.py makemigrations
-    python3 manage.py migrate
+    source venv/bin/activate
+    python manage.py makemigrations
+    python manage.py migrate
+    deactivate
     cd ..
     print_success "Migrations completed"
 }
@@ -176,7 +192,9 @@ test() {
     # Backend tests
     print_info "Running backend tests..."
     cd $BACKEND_DIR
-    python3 manage.py test
+    source venv/bin/activate
+    python manage.py test
+    deactivate
     cd ..
     
     # Frontend tests (if configured)
