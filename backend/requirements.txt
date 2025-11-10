@@ -1,0 +1,29 @@
+# Django Framework
+Django==5.0.0
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+django-filter==23.5
+
+# Database
+psycopg2-binary==2.9.9
+dj-database-url==2.1.0
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# HTTP Requests
+requests==2.31.0
+
+# Caching (Optional)
+django-redis==5.4.0
+redis==5.0.1
+
+# API Documentation
+drf-spectacular==0.27.0
+
+# Testing
+pytest==7.4.3
+pytest-django==4.7.0
+
+# Production Server
+gunicorn==21.2.0
